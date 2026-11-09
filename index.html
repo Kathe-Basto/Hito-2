@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EstadiApp · MotoExpres S.A.S.</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand"><b>MotoExpres</b><span>Analítica para decidir</span></div>
+      <div class="nav">
+        <button id="nav-m1" aria-current="page" onclick="showScreen('m1')"><span class="k">M1</span>Cargar
+          datos</button>
+        <button id="nav-m2" onclick="showScreen('m2')"><span class="k">M2</span>Análisis descriptivo</button>
+        <button id="nav-m3" onclick="showScreen('m3')"><span class="k">M3</span>Probabilidad y Bayes</button>
+      </div>
+      <div class="nav">
+        <button id="nav-m4" onclick="showScreen('m4')"><span class="k">M4</span>Binomial y Poisson</button>
+        <button id="nav-m5" onclick="showScreen('m5')"><span class="k">M5</span>Normal y Exponencial</button>
+      </div>
+      <div class="nav">
+        <button id="nav-m9" onclick="showScreen('m9')"><span class="k">M9</span>Informe y decisiones</button>
+      </div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <span class="dot"></span>
+        <span>Archivo actual:</span>
+        <b id="top-filename">Ningún archivo cargado</b>
+        <span id="top-filemeta"></span>
+      </div>
+
+      <!-- PANTALLA M1 -->
+      <div id="screen-m1" class="screen">
+        <h2 style="margin: 0 0 16px 0; color: var(--navy); font-size: 22px;">Cargar datos</h2>
+
+        <div class="grid g2">
+
+          <div class="card">
+            <h3>Seleccionar el archivo</h3>
+            <div class="drop" onclick="document.getElementById('fileIn').click()">
+              <b>Haga clic para elegirlo</b>
+              <span>CSV o XLSX con hoja «datos»</span>
+              <span class="pill">Esquema: MotoExpres S.A.S. · 21 columnas</span>
+            </div>
+            <input type="file" id="fileIn" accept=".csv,.xlsx" style="display:none" onchange="handleFileSelect(event)">
+
+            <div style="margin-top: 12px;">
+              <button class="btn" onclick="testInvalidFile()">Ver cómo se ve un archivo rechazado</button>
+            </div>
+
+            <div id="success-message-container"></div>
+
+            <div id="error-container"></div>
+          </div>
+
+          <div class="card">
+            <h3>Validación del formato</h3>
+            <ul class="checks">
+              <li><span>✓ Columnas con el nombre y el orden exactos</span> <span class="pill ok" id="chk-cols">21 de
+                  21</span></li>
+              <li><span>✓ Sin celdas vacías</span> <span class="pill ok" id="chk-empty">0 vacías</span></li>
+              <li><span>✓ Sin filas duplicadas</span> <span class="pill ok" id="chk-dups">0 duplicadas</span></li>
+              <li><span>✓ Identificador único</span> <span class="pill ok" id="chk-id">0 únicos</span></li>
+              <li><span>✓ Tipos correctos (números, fechas, Sí/No)</span> <span class="pill ok" id="chk-id">todas las
+                  columnas</span></li>
+              <li><span>✓ Valores dentro del rango</span> <span class="pill ok" id="chk-id">0 fuera de rango</span></li>
+
+            </ul>
+            <div class="interp" id="valid-interp"><b>Esperando archivo...</b> Seleccione un archivo para procesar.</div>
+          </div>
+        </div>
+
+        <div class="grid g6" style="margin-top: 16px;">
+          <div class="kpi">
+            <div class="l">FILAS</div>
+            <div class="v" id="kpi-filas">-</div>
+          </div>
+          <div class="kpi">
+            <div class="l">COLUMNAS</div>
+            <div class="v" id="kpi-cols">21</div>
+          </div>
+          <div class="kpi">
+            <div class="l">DESDE</div>
+            <div class="v" id="kpi-desde" style="font-size:13px; margin-top:8px;">-</div>
+          </div>
+          <div class="kpi">
+            <div class="l">HASTA</div>
+            <div class="v" id="kpi-hasta" style="font-size:13px; margin-top:8px;">-</div>
+          </div>
+          <div class="kpi">
+            <div class="l">MECÁNICOS</div>
+            <div class="v" id="kpi-mecs">-</div>
+          </div>
+          <div class="kpi">
+            <div class="l">CLIENTES DISTINTOS</div>
+            <div class="v" id="kpi-clientes">-</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
+          <h3>Sedes encontradas en el archivo</h3>
+          <div id="sedes-tags" style="display:flex; gap:8px;"><i>No hay sedes cargadas.</i></div>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
+          <h3>Vista previa (primeras filas)</h3>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr id="preview-header"></tr>
+              </thead>
+              <tbody id="preview-body">
+                <tr>
+                  <td colspan="21">Cargue un archivo para ver los datos.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+
+
+
+      <!----------------- PANTALLA M2 ----------------------- -->
+      <div id="screen-m2" class="screen" style="display:none;">
+        <div class="m2-header-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h2 style="margin: 0 0 4px 0; color: var(--ink); font-size: 20px;">Análisis descriptivo</h2>
+              <span style="color: var(--muted); font-size: 13px;">Cómo son los datos: centro, dispersión, forma y
+                grupos.</span>
+            </div>
+
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <div>
+                <span style="font-size: 11px; color: var(--muted); display: block; text-transform: uppercase;">Variable
+                  numérica</span>
+                <select id="sel-var" onchange="calcM2()" style="margin-top: 4px;">
+                  <option value="costo_total_usd">costo_total_usd</option>
+                  <option value="tiempo_diagnostico_min">tiempo_diagnostico_min</option>
+                </select>
+              </div>
+              <div>
+                <span
+                  style="font-size: 11px; color: var(--muted); display: block; text-transform: uppercase;">Sede</span>
+                <select id="sel-sede" onchange="calcM2()" style="margin-top: 4px;">
+                  <option value="Todas">Todas las sedes</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- 6 TARJETAS SUPERIORES -->
+          <div class="kpi-row-m2">
+            <div class="kpi">
+              <div class="l">MEDIA</div>
+              <div class="v" id="m2-kpi-media">-</div>
+            </div>
+            <div class="kpi">
+              <div class="l">MEDIANA</div>
+              <div class="v" id="m2-kpi-mediana">-</div>
+            </div>
+            <div class="kpi">
+              <div class="l">DESV. ESTÁNDAR</div>
+              <div class="v" id="m2-kpi-std">-</div>
+            </div>
+            <div class="kpi">
+              <div class="l">CV</div>
+              <div class="v" id="m2-kpi-cv">-</div>
+            </div>
+            <div class="kpi">
+              <div class="l">SESGO</div>
+              <div class="v" id="m2-kpi-sesgo">-</div>
+            </div>
+            <div class="kpi">
+              <div class="l">ATÍPICOS</div>
+              <div class="v" id="m2-kpi-atipicos">-</div><span style="font-size:10px; color:var(--muted)">regla
+                1.5-IQR</span>
+            </div>
+          </div>
+
+          <!-- SECCIÓN DE GRÁFICOS Y TABLA DETALLADA -->
+          <div class="grid g2">
+            <!-- Histograma -->
+            <div class="card">
+              <h3 id="hist-title">Histograma de costo_total_usd</h3>
+              <span style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 10px;">Frecuencia por
+                intervalo</span>
+              <div class="chart-container" id="histogram-box">
+                <span style="color:var(--muted); margin:auto;">Cargue datos para generar gráfico</span>
+              </div>
+            </div>
+
+            <!-- Tabla de todas las medidas -->
+            <div class="card">
+              <h3>Todas las medidas</h3>
+              <div style="max-height: 275px; overflow-y: auto;">
+                <table>
+                  <tbody id="m2-stats-table">
+                    <tr>
+                      <td colspan="2" style="text-align:center; color:var(--muted);">Esperando datos del archivo...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="interp" id="m2-interp" style="margin-top: 10px;">
+                <b>Lectura:</b> Cargue un archivo en M1 para ver la interpretación analítica.
+              </div>
+            </div>
+          </div>
+
+          <!-- SEGUNDA FILA: FRECUENCIAS Y GRUPOS -->
+          <div class="grid g2" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Frecuencias de tipo_servicio</h3>
+              <div id="bar-chart-container" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+                <i style="color:var(--muted);">Sin datos cargados.</i>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Costo por tipo de servicio (USD)</h3>
+              <span style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 10px;">Caja = Q1 a Q3 ·
+                Línea ámbar = mediana · Bigotes = mínimo y máximo</span>
+              <div id="boxplot-container" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+                <i style="color:var(--muted);">Sin datos cargados.</i>
+              </div>
+            </div>
+          </div>
+
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px;">
+
+            <!-- Tarjeta 1: Sede -->
+            <div class="card">
+              <div style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:600;">SEDE CON MAYOR
+                COSTO MEDIO</div>
+              <div id="m2-card-sede" style="font-size:20px; font-weight:700; color:var(--ink); margin-top:6px;">-</div>
+              <div id="m2-card-sede-val" style="font-size:12.5px; color:#2563EB; font-weight:600; margin-top:4px;">-
+              </div>
+            </div>
+
+            <!-- Tarjeta 2: Mecánico -->
+            <div class="card">
+              <div style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:600;">MECÁNICO MÁS
+                CONSISTENTE (MENOR CV)</div>
+              <div id="m2-card-mec" style="font-size:20px; font-weight:700; color:var(--ink); margin-top:6px;">-</div>
+              <div id="m2-card-mec-val" style="font-size:12.5px; color:#2563EB; font-weight:600; margin-top:4px;">-
+              </div>
+            </div>
+
+            <!-- Tarjeta 3: Satisfacción -->
+            <div class="card">
+              <div style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:600;">SATISFACCIÓN
+              </div>
+              <div id="m2-card-sat" style="font-size:20px; font-weight:700; color:var(--ink); margin-top:6px;">-</div>
+              <div id="m2-card-sat-val" style="font-size:12.5px; color:#2563EB; font-weight:600; margin-top:4px;">-
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+
+
+
+
+
+      <!----------------- PANTALLA M3: PROBABILIDAD Y BAYES ----------------------- -->
+      <div id="screen-m3" class="screen" style="display:none;">
+        <div class="m2-header-card">
+          <h2 style="margin: 0 0 4px 0; color: var(--ink); font-size: 20px;">Probabilidad y Bayes</h2>
+          <span style="color: var(--muted); font-size: 13px;">Qué tan probable es cada evento y cómo cambia cuando
+            sabemos algo más.</span>
+        </div>
+
+        <!-- TARJETAS SUPERIORES -->
+        <div class="grid g4"
+          style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
+          <div class="kpi">
+            <div class="l">P(MOTO)</div>
+            <div class="v" id="m3-kpi-pa">-</div>
+          </div>
+          <div class="kpi">
+            <div class="l">P(SATISFACCIÓN ≥ 4)</div>
+            <div class="v" id="m3-kpi-pb">-</div>
+          </div>
+          <div class="kpi">
+            <div class="l">P(A ∩ B)</div>
+            <div class="v" id="m3-kpi-panb">-</div>
+          </div>
+          <div class="kpi">
+            <div class="l">P(A ∪ B)</div>
+            <div class="v" id="m3-kpi-paub">-</div>
+            <div style="font-size:10px; color:var(--muted); margin-top:2px;">= P(A) + P(B) − P(A ∩ B)</div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN CENTRAL: TABLA Y BARRAS -->
+        <div class="grid g2" style="margin-bottom: 20px;">
+          <div class="card">
+            <h3>Tabla de contingencia: mecánico × requirio_garantia</h3>
+            <div style="max-height: 280px; overflow-y: auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>MECÁNICO</th>
+                    <th style="text-align:center;">SÍ</th>
+                    <th style="text-align:center;">NO</th>
+                    <th style="text-align:center;">TOTAL</th>
+                    <th style="text-align:right;">P(GARANTÍA | GRUPO)</th>
+                  </tr>
+                </thead>
+                <tbody id="m3-tabla-contingencia">
+                  <tr>
+                    <td colspan="5" style="text-align:center; padding:15px; color:var(--muted);">Cargue datos para
+                      calcular...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>P(Garantía | Mecánico)</h3>
+            <div id="m3-bars-garantia" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+              <i style="color:var(--muted); font-size:12px;">Sin datos cargados.</i>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN INFERIOR: BAYES E INDEPENDENCIA -->
+        <div class="grid g2">
+          <div class="card">
+            <h3>Bayes: ¿de dónde viene una garantía?</h3>
+            <div style="display:flex; gap:15px; margin-top:15px;">
+              <div class="bayes-box-before">
+                <div style="font-size:11px; color:var(--muted); text-transform:uppercase;" id="m3-bayes-antes-label">
+                  ANTES · P(MECÁNICO MÁX)</div>
+                <div id="m3-bayes-antes-val" style="font-size:22px; font-weight:700; color:var(--ink); margin-top:4px;">
+                  -%</div>
+                <div style="font-size:11px; color:var(--muted); margin-top:2px;">sin saber nada más</div>
+              </div>
+              <div class="bayes-box-after">
+                <div style="font-size:11px; color:#047857; text-transform:uppercase; font-weight:600;"
+                  id="m3-bayes-despues-label">DESPUÉS · P(MECÁNICO MÁX | GARANTÍA)</div>
+                <div id="m3-bayes-despues-val" style="font-size:22px; font-weight:700; color:#047857; margin-top:4px;">
+                  -%</div>
+                <div style="font-size:10px; color:var(--muted); margin-top:2px;">= P(Garantía|Mec)·P(Mec) / P(Garantía)
+                </div>
+              </div>
+            </div>
+            <div id="m3-bayes-interp" class="m3-interp-box">
+              <b>Lectura:</b> Cargue datos para analizar el cambio de probabilidad con Bayes.
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>¿Son independientes?</h3>
+            <table style="margin-top:10px;">
+              <thead>
+                <tr>
+                  <th>CONDICIONAL</th>
+                  <th style="text-align:center;">VALOR</th>
+                  <th>SIN CONDICIÓN</th>
+                  <th style="text-align:center;">VALOR</th>
+                  <th style="text-align:right;">VEREDICTO</th>
+                </tr>
+              </thead>
+              <tbody id="m3-tabla-independencia">
+                <tr>
+                  <td colspan="5" style="text-align:center; padding:10px; color:var(--muted);">Cargue datos para la
+                    prueba...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+
+
+      <!------------------------------------- MÓDULO 4: DISCRETAS, BINOMIAL Y POISSON--------------------------------- -->
+      <div id="screen-m4" class="screen" style="display: none;">
+        <div class="card" style="margin-bottom: 18px; background: var(--surface);">
+          <h3 style="margin:0 0 6px 0;">Binomial y Poisson</h3>
+          <p style="margin:0; font-size:13px; color: var(--muted);">Variables que cuentan: cuántos repuestos, cuántos
+            éxitos, cuántas llegadas o fallas.</p>
+        </div>
+
+        <div class="grid g2" style="margin-bottom: 18px;">
+          <!-- Variable Aleatoria: repuestos_usados -->
+          <div class="card">
+            <h3>Variable aleatoria: repuestos_usados</h3>
+            <div id="m4-pmf-container"
+              style="position: relative; width: 100%; height: 200px; background: #F8FAFC; border-radius: 8px; padding: 12px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; margin-bottom: 16px;">
+              <!-- PMF Chart render -->
+            </div>
+            <div class="grid g3">
+              <div class="kpi">
+                <div class="l">E(X)</div>
+                <div class="v" id="m4-kpi-ex">-</div>
+              </div>
+              <div class="kpi">
+                <div class="l">V(X)</div>
+                <div class="v" id="m4-kpi-vx">-</div>
+              </div>
+              <div class="kpi">
+                <div class="l">P(X ≥ 3)</div>
+                <div class="v" id="m4-kpi-p3">-</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Calculadora Binomial -->
+          <div class="card">
+            <h3>Calculadora Binomial</h3>
+            <p id="m4-binomial-subtitle" style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">p =
+              P(Recomienda = Sí) (estimado del archivo)</p>
+
+            <div style="display: flex; gap: 12px; margin-bottom: 14px;">
+              <div style="flex: 1;">
+                <label
+                  style="font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 4px;">n
+                  (ensayos)</label>
+                <input type="number" id="binomial-n" value="10" min="1" max="50"
+                  style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink);">
+              </div>
+              <div style="flex: 1;">
+                <label
+                  style="font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 4px;">k
+                  (éxitos)</label>
+                <input type="number" id="binomial-k" value="8" min="0" max="50"
+                  style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink);">
+              </div>
+            </div>
+
+            <div class="grid g3" style="margin-bottom: 14px;">
+              <div class="kpi">
+                <div class="l">P(X = K)</div>
+                <div class="v" id="binomial-res-eq" style="font-size: 18px;">-</div>
+              </div>
+              <div class="kpi">
+                <div class="l">P(X ≥ K)</div>
+                <div class="v" id="binomial-res-geq" style="font-size: 18px;">-</div>
+              </div>
+              <div class="kpi">
+                <div class="l">E(X) = NP</div>
+                <div class="v" id="binomial-res-ex" style="font-size: 18px;">-</div>
+              </div>
+            </div>
+
+            <div id="binomial-chart-container"
+              style="position: relative; width: 100%; height: 140px; background: #F8FAFC; border-radius: 8px; padding: 8px; display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; margin-bottom: 12px;">
+            </div>
+
+            <div id="binomial-interp" class="interp">Cargue un archivo para calcular la distribución binomial.</div>
+          </div>
+        </div>
+
+        <!-- Poisson -->
+        <div class="card">
+          <h3 id="poisson-title">Poisson: servicios por sede en un día hábil</h3>
+          <p id="poisson-subtitle" style="font-size: 12px; color: var(--muted); margin-bottom: 14px;">λ = estimado
+            (promedio observado)</p>
+
+          <div class="grid g2" style="align-items: center;">
+            <div style="background: #F8FAFC; border-radius: 10px; padding: 12px;">
+              <div id="poisson-chart-container"
+                style="position: relative; width: 100%; height: 180px; display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; margin-bottom: 8px;">
+              </div>
+            </div>
+            <div class="grid g2" style="gap: 12px;">
+              <div class="kpi">
+                <div class="l">P(X = 0)</div>
+                <div class="v" id="poisson-p0">-</div>
+              </div>
+              <div class="kpi">
+                <div class="l">P(X ≥ 20)</div>
+                <div class="v" id="poisson-p20">-</div>
+              </div>
+              <div class="kpi">
+                <div class="l">Capacidad Mínima C</div>
+                <div class="v" id="poisson-c">-</div>
+                <span style="font-size: 10px; color: var(--muted);">P(X > c) &lt; 5%</span>
+              </div>
+              <div class="kpi">
+                <div class="l">Varianza / Media</div>
+                <div class="v" id="poisson-ratio">-</div>
+                <span style="font-size: 10px; color: var(--muted);">≈ 1 si es Poisson</span>
+              </div>
+            </div>
+          </div>
+          <div id="poisson-interp" class="interp" style="margin-top: 14px;">Cargue un archivo para calcular el modelo de
+            Poisson.</div>
+        </div>
+      </div>
+
+
+
+
+
+
+      <!----------------------------------------------PANTALLA M5: NORMAL Y EXPONENCIAL ------------------------------------------------------------------>
+      <div id="screen-m5" class="screen" style="display: none;">
+        <div class="card" style="margin-bottom: 18px; background: var(--surface);">
+          <h3 style="margin:0 0 6px 0;">Normal y Exponencial</h3>
+          <p style="margin:0; font-size:13px; color: var(--muted);">Variables que miden: ¿se comportan como una campana?
+            ¿cuánto tarda el próximo evento?</p>
+        </div>
+
+        <div class="grid g2" style="margin-bottom: 18px;">
+          <!-- Normal: tiempo_diagnostico_min -->
+          <div class="card">
+            <h3>Normal: tiempo_diagnostico_min (todos los servicios)</h3>
+            <p id="m5-normal-subtitle" style="font-size: 11px; color: var(--muted); margin-bottom: 10px;">Histograma de
+              los datos con la curva Normal</p>
+
+            <div id="m5-normal-chart"
+              style="position: relative; width: 100%; height: 200px; background: #F8FAFC; border-radius: 8px; padding: 12px; display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; margin-bottom: 16px;">
+            </div>
+
+            <div class="grid g3">
+              <div class="kpi">
+                <div class="l">μ ± 1σ</div>
+                <div class="v" id="m5-kpi-1sigma">-</div>
+                <span style="font-size: 10px; color: var(--muted);">esperado 68%</span>
+              </div>
+              <div class="kpi">
+                <div class="l">μ ± 2σ</div>
+                <div class="v" id="m5-kpi-2sigma">-</div>
+                <span style="font-size: 10px; color: var(--muted);">esperado 95%</span>
+              </div>
+              <div class="kpi">
+                <div class="l">Percentil 95</div>
+                <div class="v" id="m5-kpi-p95" style="font-size: 18px;">-</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Calculadora Normal -->
+          <div class="card">
+            <h3>Calculadora Normal</h3>
+            <div style="display: flex; gap: 12px; margin-bottom: 14px;">
+              <div style="flex: 1;">
+                <label
+                  style="font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Valor
+                  x (min)</label>
+                <input type="number" id="normal-input-x" value="25" step="0.5"
+                  style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink);">
+              </div>
+              <div style="flex: 1;">
+                <label
+                  style="font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Percentil
+                  (%)</label>
+                <input type="number" id="normal-input-p" value="95" min="1" max="99"
+                  style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink);">
+              </div>
+            </div>
+
+            <div class="grid g3" style="margin-bottom: 14px;">
+              <div class="kpi">
+                <div class="l">P(X < X)</div>
+                    <div class="v" id="normal-res-lt" style="font-size: 18px;">-</div>
+                </div>
+                <div class="kpi">
+                  <div class="l">P(X > X)</div>
+                  <div class="v" id="normal-res-gt" style="font-size: 18px;">-</div>
+                </div>
+                <div class="kpi">
+                  <div class="l">Percentil</div>
+                  <div class="v" id="normal-res-perc" style="font-size: 18px;">-</div>
+                </div>
+              </div>
+
+              <div id="normal-interp" class="interp">Cargue un archivo para activar la calculadora Normal.</div>
+            </div>
+          </div>
+
+          <!-- Exponencial -->
+          <div class="card">
+            <h3>Exponencial: tiempo entre llegadas</h3>
+            <div class="grid g3" style="margin-top: 10px;">
+              <div class="kpi">
+                <div class="l">λ</div>
+                <div class="v" id="exp-lambda">-</div>
+                <span style="font-size: 10px; color: var(--muted);">llegadas por sede y hora</span>
+              </div>
+              <div class="kpi">
+                <div class="l">E(T) = 60 / λ</div>
+                <div class="v" id="exp-et">-</div>
+                <span style="font-size: 10px; color: var(--muted);">minutos</span>
+              </div>
+              <div class="kpi">
+                <div class="l">P(T < 5 min)</div>
+                    <div class="v" id="exp-p5">-</div>
+                    <span style="font-size: 10px; color: var(--muted);">probabilidad</span>
+                </div>
+              </div>
+              <div id="exp-interp" class="interp" style="margin-top: 14px;">Cargue un archivo para calcular el modelo
+                Exponencial.</div>
+            </div>
+          </div>
+
+
+
+
+          <!-- ---------------------------------------------------------PANTALLA M9: INFORME Y DECISIONES------------------------------------------------------------------------- -->
+          <div id="screen-m9" class="screen" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+              <div>
+                <h2 style="margin: 0 0 4px 0; color: var(--ink); font-size: 22px;">Informe y decisiones</h2>
+              </div>
+              <button class="btn" onclick="exportarInformeHTML()"
+                style="background: var(--teal); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                Descargar informe (PDF)
+              </button>
+            </div>
+
+            <!-- 4 TARJETAS SUPERIORES DE KPIS -->
+            <div class="grid g4"
+              style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
+              <div class="card" style="padding: 18px;">
+                <div
+                  style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                  Servicios</div>
+                <div id="m9-kpi-servicios"
+                  style="font-size: 24px; font-weight: 700; color: var(--ink); font-family: var(--f-mono); margin: 4px 0;">
+                  -</div>
+                <div id="m9-kpi-fechas" style="font-size: 11.5px; color: var(--muted);">-</div>
+              </div>
+              <div class="card" style="padding: 18px;">
+                <div
+                  style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                  Costo medio</div>
+                <div id="m9-kpi-costo"
+                  style="font-size: 24px; font-weight: 700; color: var(--ink); font-family: var(--f-mono); margin: 4px 0;">
+                  -</div>
+                <div id="m9-kpi-ic" style="font-size: 11.5px; color: var(--muted);">-</div>
+              </div>
+              <div class="card" style="padding: 18px;">
+                <div
+                  style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                  Recomiendan</div>
+                <div id="m9-kpi-recom"
+                  style="font-size: 24px; font-weight: 700; color: var(--ink); font-family: var(--f-mono); margin: 4px 0;">
+                  -</div>
+                <div style="font-size: 11.5px; color: var(--muted);">de los clientes</div>
+              </div>
+              <div class="card" style="padding: 18px;">
+                <div
+                  style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                  Garantías</div>
+                <div id="m9-kpi-gar"
+                  style="font-size: 24px; font-weight: 700; color: var(--ink); font-family: var(--f-mono); margin: 4px 0;">
+                  -</div>
+                <div style="font-size: 11.5px; color: var(--muted);">meta ≤ 5 %</div>
+              </div>
+            </div>
+
+            <!-- 3 TARJETAS DE DECISIONES -->
+            <div class="grid g3" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+              <!-- Decisión 1 -->
+              <div class="card" style="border-top: 4px solid var(--teal); padding: 20px;">
+                <div
+                  style="font-size: 10.5px; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                  Decisión 1 · Capacidad</div>
+                <div id="m9-dec1-title"
+                  style="font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 8px; line-height: 1.3;">-
+                </div>
+                <div id="m9-dec1-desc" style="font-size: 12.5px; color: var(--muted); line-height: 1.4;">-</div>
+              </div>
+              <!-- Decisión 2 -->
+              <div class="card" style="border-top: 4px solid var(--teal); padding: 20px;">
+                <div
+                  style="font-size: 10.5px; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                  Decisión 2 · Calidad</div>
+                <div id="m9-dec2-title"
+                  style="font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 8px; line-height: 1.3;">-
+                </div>
+                <div id="m9-dec2-desc" style="font-size: 12.5px; color: var(--muted); line-height: 1.4;">-</div>
+              </div>
+              <!-- Decisión 3 -->
+              <div class="card" style="border-top: 4px solid var(--teal); padding: 20px;">
+                <div
+                  style="font-size: 10.5px; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                  Decisión 3 · Finanzas</div>
+                <div id="m9-dec3-title"
+                  style="font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 8px; line-height: 1.3;">-
+                </div>
+                <div id="m9-dec3-desc" style="font-size: 12.5px; color: var(--muted); line-height: 1.4;">-</div>
+              </div>
+            </div>
+          </div>
+
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+
+</html>
